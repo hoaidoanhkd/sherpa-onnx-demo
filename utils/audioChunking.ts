@@ -11,6 +11,7 @@ import {
 } from '../constants'
 import { Speaker, TranscriptionSegment } from '../types'
 
+import { readFilePartial } from './fileUtils'
 import { getSttEngine } from './onnxContext'
 
 function createWavHeader(dataSize: number): Uint8Array {
@@ -60,7 +61,7 @@ export async function cutWavChunk(
       return null
     }
 
-    const pcmBase64 = await RNFS.read(inputPath, dataSize, startByte, 'base64')
+    const pcmBase64 = await readFilePartial(inputPath, dataSize, startByte)
 
     const header = createWavHeader(dataSize)
     const headerBase64 = Buffer.from(header).toString('base64')
@@ -70,7 +71,8 @@ export async function cutWavChunk(
     await RNFS.appendFile(outputPath, pcmBase64, 'base64')
 
     return outputPath
-  } catch {
+  } catch (err: any) {
+    if (__DEV__) console.error('[cutWavChunk] Error:', err?.message || err)
     return null
   }
 }
@@ -120,8 +122,8 @@ export async function transcribeInChunks(
       if (!engine) {
         continue
       }
-      const result = await engine.transcribeFile(chunkPath)
-      const text = result.text.trim()
+      const result = await engine.transcribe(chunkPath)
+      const text = (typeof result === 'string' ? result : result?.text || '').trim()
 
       await RNFS.unlink(chunkPath).catch(() => {})
 
@@ -146,7 +148,8 @@ export async function transcribeInChunks(
       }
 
       prevText = text
-    } catch {
+    } catch (err: any) {
+      if (__DEV__) console.error('[transcribeInChunks] Error:', err?.message || err)
       await RNFS.unlink(chunkPath).catch(() => {})
     }
   }

@@ -1,0 +1,339 @@
+diff --git a/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.h b/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.h
+index 83f1c34..3dc1dd6 100644
+--- a/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.h
++++ b/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.h
+@@ -1,6 +1,112 @@
+ #import <React/RCTEventEmitter.h>
+ #import <SherpaOnnxSpec/SherpaOnnxSpec.h>
+ 
++#ifdef RCT_NEW_ARCH_ENABLED
++#import <ReactCommon/RCTTurboModule.h>
++#endif
++
+ @interface SherpaOnnx : RCTEventEmitter <NativeSherpaOnnxSpec>
+ 
++#ifdef RCT_NEW_ARCH_ENABLED
++// Internal implementation methods (with withResolver:/withRejecter: naming)
++- (void)testSherpaInitWithResolver:(RCTPromiseResolveBlock)resolve
++                      withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)resolveModelPath:(NSDictionary *)config
++            withResolver:(RCTPromiseResolveBlock)resolve
++            withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)initializeSherpaOnnx:(NSString *)modelDir
++                  preferInt8:(NSNumber *)preferInt8
++                   modelType:(NSString *)modelType
++                withResolver:(RCTPromiseResolveBlock)resolve
++                withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)transcribeFile:(NSString *)filePath
++          withResolver:(RCTPromiseResolveBlock)resolve
++          withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)unloadSherpaOnnxWithResolver:(RCTPromiseResolveBlock)resolve
++                        withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)initializeTts:(NSString *)modelDir
++            modelType:(NSString *)modelType
++           numThreads:(double)numThreads
++                debug:(BOOL)debug
++           noiseScale:(NSNumber *)noiseScale
++          noiseScaleW:(NSNumber *)noiseScaleW
++          lengthScale:(NSNumber *)lengthScale
++         withResolver:(RCTPromiseResolveBlock)resolve
++         withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)updateTtsParams:(NSNumber *)noiseScale
++            noiseScaleW:(NSNumber *)noiseScaleW
++            lengthScale:(NSNumber *)lengthScale
++           withResolver:(RCTPromiseResolveBlock)resolve
++           withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)generateTts:(NSString *)text
++                sid:(double)sid
++              speed:(double)speed
++       withResolver:(RCTPromiseResolveBlock)resolve
++       withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)generateTtsWithTimestamps:(NSString *)text
++                              sid:(double)sid
++                            speed:(double)speed
++                     withResolver:(RCTPromiseResolveBlock)resolve
++                     withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)generateTtsStream:(NSString *)text
++                      sid:(double)sid
++                    speed:(double)speed
++             withResolver:(RCTPromiseResolveBlock)resolve
++             withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)cancelTtsStream:(RCTPromiseResolveBlock)resolve
++           withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)startTtsPcmPlayer:(double)sampleRate
++                 channels:(double)channels
++             withResolver:(RCTPromiseResolveBlock)resolve
++             withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)writeTtsPcmChunk:(NSArray<NSNumber *> *)samples
++            withResolver:(RCTPromiseResolveBlock)resolve
++            withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)stopTtsPcmPlayer:(RCTPromiseResolveBlock)resolve
++            withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)getTtsSampleRate:(RCTPromiseResolveBlock)resolve
++            withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)getTtsNumSpeakers:(RCTPromiseResolveBlock)resolve
++             withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)unloadTts:(RCTPromiseResolveBlock)resolve
++     withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)saveTtsAudioToFile:(NSArray<NSNumber *> *)samples
++             withSampleRate:(double)sampleRate
++               withFilePath:(NSString *)filePath
++               withResolver:(RCTPromiseResolveBlock)resolve
++               withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)saveTtsTextToContentUri:(NSString *)text
++                   directoryUri:(NSString *)directoryUri
++                       filename:(NSString *)filename
++                       mimeType:(NSString *)mimeType
++                  withResolver:(RCTPromiseResolveBlock)resolve
++                  withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)shareTtsAudio:(NSString *)fileUri
++             mimeType:(NSString *)mimeType
++         withResolver:(RCTPromiseResolveBlock)resolve
++         withRejecter:(RCTPromiseRejectBlock)reject;
++
++- (void)listAssetModels:(RCTPromiseResolveBlock)resolve
++           withRejecter:(RCTPromiseRejectBlock)reject;
++#endif
++
+ @end
+diff --git a/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.mm b/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.mm
+index 75d05f0..f71a2db 100644
+--- a/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.mm
++++ b/node_modules/react-native-sherpa-onnx/ios/SherpaOnnx.mm
+@@ -8,11 +8,217 @@
+ 
+ @implementation SherpaOnnx
+ 
++RCT_EXPORT_MODULE(SherpaOnnx)
++
++// Tells React Native that this module requires the main queue
+++ (BOOL)requiresMainQueueSetup
++{
++    return NO;
++}
++
++// TurboModule support - return self as the TurboModule
++- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
++    (const facebook::react::ObjCTurboModule::InitParams &)params
++{
++    return std::make_shared<facebook::react::NativeSherpaOnnxSpecJSI>(params);
++}
++
+ - (NSArray<NSString *> *)supportedEvents
+ {
+     return @[ @"ttsStreamChunk", @"ttsStreamEnd", @"ttsStreamError" ];
+ }
+ 
++// ==================== TurboModule Spec Methods ====================
++// These methods have the exact signatures required by the TurboModule spec
++
++- (void)testSherpaInit:(RCTPromiseResolveBlock)resolve
++                reject:(RCTPromiseRejectBlock)reject
++{
++    [self testSherpaInitWithResolver:resolve withRejecter:reject];
++}
++
++- (void)resolveModelPath:(JS::NativeSherpaOnnx::SpecResolveModelPathConfig &)config
++                 resolve:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject
++{
++    NSDictionary *configDict = @{
++        @"type": config.type() ?: @"auto",
++        @"path": config.path() ?: @""
++    };
++    [self resolveModelPath:configDict withResolver:resolve withRejecter:reject];
++}
++
++- (void)initializeSherpaOnnx:(NSString *)modelDir
++                  preferInt8:(NSNumber *)preferInt8
++                   modelType:(NSString *)modelType
++                     resolve:(RCTPromiseResolveBlock)resolve
++                      reject:(RCTPromiseRejectBlock)reject
++{
++    [self initializeSherpaOnnx:modelDir preferInt8:preferInt8 modelType:modelType withResolver:resolve withRejecter:reject];
++}
++
++- (void)transcribeFile:(NSString *)filePath
++               resolve:(RCTPromiseResolveBlock)resolve
++                reject:(RCTPromiseRejectBlock)reject
++{
++    [self transcribeFile:filePath withResolver:resolve withRejecter:reject];
++}
++
++- (void)unloadSherpaOnnx:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject
++{
++    [self unloadSherpaOnnxWithResolver:resolve withRejecter:reject];
++}
++
++- (void)initializeTts:(NSString *)modelDir
++            modelType:(NSString *)modelType
++           numThreads:(double)numThreads
++                debug:(BOOL)debug
++           noiseScale:(NSNumber *)noiseScale
++          noiseScaleW:(NSNumber *)noiseScaleW
++          lengthScale:(NSNumber *)lengthScale
++              resolve:(RCTPromiseResolveBlock)resolve
++               reject:(RCTPromiseRejectBlock)reject
++{
++    [self initializeTts:modelDir modelType:modelType numThreads:numThreads debug:debug noiseScale:noiseScale noiseScaleW:noiseScaleW lengthScale:lengthScale withResolver:resolve withRejecter:reject];
++}
++
++- (void)updateTtsParams:(NSNumber *)noiseScale
++            noiseScaleW:(NSNumber *)noiseScaleW
++            lengthScale:(NSNumber *)lengthScale
++                resolve:(RCTPromiseResolveBlock)resolve
++                 reject:(RCTPromiseRejectBlock)reject
++{
++    [self updateTtsParams:noiseScale noiseScaleW:noiseScaleW lengthScale:lengthScale withResolver:resolve withRejecter:reject];
++}
++
++- (void)generateTts:(NSString *)text
++                sid:(double)sid
++              speed:(double)speed
++            resolve:(RCTPromiseResolveBlock)resolve
++             reject:(RCTPromiseRejectBlock)reject
++{
++    [self generateTts:text sid:sid speed:speed withResolver:resolve withRejecter:reject];
++}
++
++- (void)generateTtsWithTimestamps:(NSString *)text
++                              sid:(double)sid
++                            speed:(double)speed
++                          resolve:(RCTPromiseResolveBlock)resolve
++                           reject:(RCTPromiseRejectBlock)reject
++{
++    [self generateTtsWithTimestamps:text sid:sid speed:speed withResolver:resolve withRejecter:reject];
++}
++
++- (void)generateTtsStream:(NSString *)text
++                      sid:(double)sid
++                    speed:(double)speed
++                  resolve:(RCTPromiseResolveBlock)resolve
++                   reject:(RCTPromiseRejectBlock)reject
++{
++    [self generateTtsStream:text sid:sid speed:speed withResolver:resolve withRejecter:reject];
++}
++
++- (void)cancelTtsStream:(RCTPromiseResolveBlock)resolve
++                 reject:(RCTPromiseRejectBlock)reject
++{
++    [self cancelTtsStream:resolve withRejecter:reject];
++}
++
++- (void)startTtsPcmPlayer:(double)sampleRate
++                 channels:(double)channels
++                  resolve:(RCTPromiseResolveBlock)resolve
++                   reject:(RCTPromiseRejectBlock)reject
++{
++    [self startTtsPcmPlayer:sampleRate channels:channels withResolver:resolve withRejecter:reject];
++}
++
++- (void)writeTtsPcmChunk:(NSArray *)samples
++                 resolve:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject
++{
++    [self writeTtsPcmChunk:samples withResolver:resolve withRejecter:reject];
++}
++
++- (void)stopTtsPcmPlayer:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject
++{
++    [self stopTtsPcmPlayer:resolve withRejecter:reject];
++}
++
++- (void)getTtsSampleRate:(RCTPromiseResolveBlock)resolve
++                  reject:(RCTPromiseRejectBlock)reject
++{
++    [self getTtsSampleRate:resolve withRejecter:reject];
++}
++
++- (void)getTtsNumSpeakers:(RCTPromiseResolveBlock)resolve
++                   reject:(RCTPromiseRejectBlock)reject
++{
++    [self getTtsNumSpeakers:resolve withRejecter:reject];
++}
++
++- (void)unloadTts:(RCTPromiseResolveBlock)resolve
++           reject:(RCTPromiseRejectBlock)reject
++{
++    [self unloadTts:resolve withRejecter:reject];
++}
++
++- (void)saveTtsAudioToFile:(NSArray *)samples
++                sampleRate:(double)sampleRate
++                  filePath:(NSString *)filePath
++                   resolve:(RCTPromiseResolveBlock)resolve
++                    reject:(RCTPromiseRejectBlock)reject
++{
++    [self saveTtsAudioToFile:samples withSampleRate:sampleRate withFilePath:filePath withResolver:resolve withRejecter:reject];
++}
++
++- (void)saveTtsAudioToContentUri:(NSArray *)samples
++                      sampleRate:(double)sampleRate
++                    directoryUri:(NSString *)directoryUri
++                        filename:(NSString *)filename
++                         resolve:(RCTPromiseResolveBlock)resolve
++                          reject:(RCTPromiseRejectBlock)reject
++{
++    // Not supported on iOS - Android-specific
++    reject(@"NOT_SUPPORTED", @"Content URIs are not supported on iOS", nil);
++}
++
++- (void)saveTtsTextToContentUri:(NSString *)text
++                   directoryUri:(NSString *)directoryUri
++                       filename:(NSString *)filename
++                       mimeType:(NSString *)mimeType
++                        resolve:(RCTPromiseResolveBlock)resolve
++                         reject:(RCTPromiseRejectBlock)reject
++{
++    [self saveTtsTextToContentUri:text directoryUri:directoryUri filename:filename mimeType:mimeType withResolver:resolve withRejecter:reject];
++}
++
++- (void)copyTtsContentUriToCache:(NSString *)fileUri
++                        filename:(NSString *)filename
++                         resolve:(RCTPromiseResolveBlock)resolve
++                          reject:(RCTPromiseRejectBlock)reject
++{
++    // Not supported on iOS - Android-specific
++    reject(@"NOT_SUPPORTED", @"Content URIs are not supported on iOS", nil);
++}
++
++- (void)shareTtsAudio:(NSString *)fileUri
++             mimeType:(NSString *)mimeType
++              resolve:(RCTPromiseResolveBlock)resolve
++               reject:(RCTPromiseRejectBlock)reject
++{
++    [self shareTtsAudio:fileUri mimeType:mimeType withResolver:resolve withRejecter:reject];
++}
++
++- (void)listAssetModels:(RCTPromiseResolveBlock)resolve
++                 reject:(RCTPromiseRejectBlock)reject
++{
++    [self listAssetModels:resolve withRejecter:reject];
++}
++
++// ==================== End TurboModule Spec Methods ====================
++
+ - (void)resolveModelPath:(NSDictionary *)config
+             withResolver:(RCTPromiseResolveBlock)resolve
+             withRejecter:(RCTPromiseRejectBlock)reject

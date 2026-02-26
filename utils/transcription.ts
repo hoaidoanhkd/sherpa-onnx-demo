@@ -57,8 +57,8 @@ export async function transcribeWithVAD(
         if (!engine) {
           continue
         }
-        const result = await engine.transcribeFile(chunkPath)
-        const text = result.text.trim()
+        const result = await engine.transcribe(chunkPath)
+        const text = (typeof result === 'string' ? result : result?.text || '').trim()
 
         if (text) {
           results.push({
@@ -67,8 +67,8 @@ export async function transcribeWithVAD(
             speaker
           })
         }
-      } catch {
-        // skip failed segment
+      } catch (err: any) {
+        if (__DEV__) console.error('[transcribeWithVAD] Transcription error:', err?.message || err)
       }
     }
   }

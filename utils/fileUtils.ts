@@ -5,6 +5,25 @@ import { STT_DURATION_BYTES, WAV_HEADER_SIZE } from '../constants'
 
 const RESAMPLE_CHUNK_SAMPLES = 500_000
 
+/**
+ * Read partial file - workaround for RNFS.read() New Architecture incompatibility
+ */
+export async function readFilePartial(
+  filePath: string,
+  length: number,
+  offset: number
+): Promise<string> {
+  // Read entire file and slice (not ideal for large files but works with New Arch)
+  const fullBase64 = await RNFS.readFile(filePath, 'base64')
+  const fullBuffer = Buffer.from(fullBase64, 'base64')
+
+  const start = Math.min(offset, fullBuffer.length)
+  const end = Math.min(offset + length, fullBuffer.length)
+  const slice = fullBuffer.slice(start, end)
+
+  return slice.toString('base64')
+}
+
 export const getTempPath = (name: string) =>
   `${RNFS.DocumentDirectoryPath}/${name}`
 
@@ -12,7 +31,7 @@ async function resampleWav8To16(
   inputPath: string,
   outputPath: string
 ): Promise<void> {
-  const headerBase64 = await RNFS.read(inputPath, WAV_HEADER_SIZE, 0, 'base64')
+  const headerBase64 = await readFilePartial(inputPath, WAV_HEADER_SIZE, 0)
   const headerBytes = Uint8Array.from(Buffer.from(headerBase64, 'base64'))
 
   if (headerBytes.length < WAV_HEADER_SIZE) {
@@ -56,12 +75,7 @@ async function resampleWav8To16(
     const readOffset = WAV_HEADER_SIZE + samplesProcessed * 2
     const readLen = chunkSamples * 2
 
-    const chunkBase64 = await RNFS.read(
-      inputPath,
-      readLen,
-      readOffset,
-      'base64'
-    )
+    const chunkBase64 = await readFilePartial(inputPath, readLen, readOffset)
     const chunkBytes = Uint8Array.from(Buffer.from(chunkBase64, 'base64'))
     const inputView = new DataView(
       chunkBytes.buffer,
@@ -116,7 +130,28 @@ export async function downloadPartialAudio(
     }).promise
 
     if (result.statusCode !== 200 && result.statusCode !== 206) {
-      throw new Error('Download failed')
+      throw new Error(`Download failed with status ${result.statusCode}`)
+    }
+
+    const exists = await RNFS.exists(path)
+    if (!exists) {
+      throw new Error('Downloaded file does not exist')
+    }
+    let stat = await RNFS.stat(path)
+
+    if (Number(stat.size) < 1000) {
+      throw new Error(`Downloaded file too small: ${stat.size} bytes`)
+    }
+
+    // If server returned full file (status 200), truncate to requested size
+    const maxSize = STT_DURATION_BYTES + 1000
+    if (Number(stat.size) > maxSize) {
+      const partialBase64 = await RNFS.readFile(path, 'base64')
+      const fullBuffer = Buffer.from(partialBase64, 'base64')
+      const truncated = fullBuffer.slice(0, STT_DURATION_BYTES)
+      await RNFS.unlink(path)
+      await RNFS.writeFile(path, truncated.toString('base64'), 'base64')
+      stat = await RNFS.stat(path)
     }
 
     if (!shouldResample) {
@@ -131,11 +166,17 @@ export async function downloadPartialAudio(
 
     await resampleWav8To16(path, resampledPath)
 
+    const resampledExists = await RNFS.exists(resampledPath)
+    if (!resampledExists) {
+      throw new Error('Resampled file was not created')
+    }
+
     await RNFS.unlink(path).catch(() => {})
 
     return resampledPath
-  } catch {
-    return path
+  } catch (err: any) {
+    if (__DEV__) console.error('[downloadPartialAudio] Error:', err?.message || err)
+    throw err
   }
 }
 

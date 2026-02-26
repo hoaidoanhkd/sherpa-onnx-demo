@@ -18,14 +18,7 @@ export default function useSpeechToText(
   const running = useRef(false)
 
   const transcribeAll = useCallback(async () => {
-    console.log('[STT] transcribeAll called', {
-      audioUrlA: !!audioUrlA,
-      audioUrlB: !!audioUrlB,
-      modelPath,
-      running: running.current
-    })
     if ((!audioUrlA && !audioUrlB) || !modelPath || running.current) {
-      console.log('[STT] transcribeAll skipped — guard clause hit')
       return
     }
 
@@ -35,14 +28,11 @@ export default function useSpeechToText(
     setConversation([])
 
     try {
-      console.log('[STT] Initializing ONNX model at:', modelPath)
       const modelReady = await initOnnxModel(modelPath)
-      console.log('[STT] Model init result:', modelReady)
       if (!modelReady) {
         throw new Error('Failed to initialize ONNX model')
       }
 
-      console.log('[STT] Downloading audio files...')
       const [cutA, cutB] = await Promise.all([
         audioUrlA
           ? downloadPartialAudio(audioUrlA, 'a_cut.wav')
@@ -51,8 +41,6 @@ export default function useSpeechToText(
           ? downloadPartialAudio(audioUrlB, 'b_cut.wav')
           : Promise.resolve(null)
       ])
-
-      console.log('[STT] Downloaded:', { cutA, cutB })
 
       if (cutA) {
         tempFiles.current.push(cutA)
@@ -65,22 +53,17 @@ export default function useSpeechToText(
       let segmentsB: TranscriptionSegment[] = []
 
       if (cutA) {
-        console.log('[STT] Transcribing channel A...')
         segmentsA = await transcribeWithVAD(cutA, 'A')
-        console.log('[STT] Channel A segments:', segmentsA.length)
       }
 
       if (cutB) {
-        console.log('[STT] Transcribing channel B...')
         segmentsB = await transcribeWithVAD(cutB, 'B')
-        console.log('[STT] Channel B segments:', segmentsB.length)
       }
 
       const merged = mergeSegments(segmentsA, segmentsB)
-      console.log('[STT] Total segments:', merged.length)
       setConversation(merged)
     } catch (e) {
-      console.log('[STT] Error:', e)
+      if (__DEV__) console.error('[STT] Error:', e)
       setError(e instanceof Error ? e.message : 'Transcription failed')
     } finally {
       setIsTranscribing(false)

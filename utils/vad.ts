@@ -12,6 +12,8 @@ import {
 } from '../constants'
 import { VADSegment } from '../types'
 
+import { readFilePartial } from './fileUtils'
+
 const CHUNK_SAMPLES = 2_000_000
 const SUBSAMPLE_FACTOR = 8
 
@@ -48,6 +50,7 @@ export async function detectSpeechSegments(
 ): Promise<VADSegment[]> {
   const stat = await RNFS.stat(filePath)
   const fileSize = Number(stat.size)
+
   const pcmBytes = fileSize - WAV_HEADER_SIZE
   const totalSamples = Math.floor(pcmBytes / 2)
 
@@ -62,7 +65,7 @@ export async function detectSpeechSegments(
     const byteOffset = WAV_HEADER_SIZE + samplesRead * 2
     const byteLen = chunkSamples * 2
 
-    const base64 = await RNFS.read(filePath, byteLen, byteOffset, 'base64')
+    const base64 = await readFilePartial(filePath, byteLen, byteOffset)
     const samples = base64ToFloat32(base64)
 
     const chunkStart = samplesRead
