@@ -1,0 +1,42 @@
+{
+  "common": {
+    "cancel": "キャンセル",
+    "ok": "OK"
+  },
+  "settingScreen": {
+    "callRecordSection": "通話録音",
+    "speechToText": "文字起こし機能",
+    "speechToTextDescription": "通話録音の内容をテキストに変換します",
+    "aiModelStatus": "AIモデルの状態",
+    "modelNotDownloaded": "未ダウンロード",
+    "modelDownloaded": "ダウンロード済み ({{size}}MB)",
+    "modelDownloading": "ダウンロード中... {{progress}}%",
+    "downloadNow": "今すぐダウンロード",
+    "deleteModel": "モデルを削除",
+    "enableDialogTitle": "文字起こし機能を有効にしますか？",
+    "enableDialogMessage": "この機能を使用するには、AIモデル（約161MB）をダウンロードする必要があります。\n\n• Wi-Fi環境でのダウンロードを推奨します\n• 端末のストレージを161MB使用します",
+    "enableDialogConfirm": "有効にする",
+    "disableDialogTitle": "文字起こし機能を無効にしますか？",
+    "disableDialogMessage": "機能を無効にしても、ダウンロード済みのAIモデルは保持されます。",
+    "disableDialogConfirm": "無効にする",
+    "deleteDialogTitle": "AIモデルを削除しますか？",
+    "deleteDialogMessage": "モデルを削除すると、文字起こし機能が使用できなくなります。再度使用する場合は、モデルを再ダウンロードする必要があります（161MB）。",
+    "deleteDialogConfirm": "削除する"
+  },
+  "callHistoryDetailScreen": {
+    "contact": "通話先",
+    "callInfo": "通話情報",
+    "date": "日付",
+    "direction": "通話方向",
+    "operator": "担当者",
+    "phoneNumber": "電話番号",
+    "talkDuration": "通話時間",
+    "incoming": "着信",
+    "outgoing": "発信",
+    "unknown": "不明",
+    "callRecord": "通話録音",
+    "failedToLoadCallRecord": "通話録音の読み込みに失敗しました",
+    "conversationContent": "会話（オペレーター/顧客）",
+    "transcribing": "文字起こし中..."
+  }
+}

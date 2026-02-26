@@ -1,0 +1,42 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "ok": "OK"
+  },
+  "settingScreen": {
+    "callRecordSection": "Call Recording",
+    "speechToText": "Speech-to-Text",
+    "speechToTextDescription": "Convert call recordings to text",
+    "aiModelStatus": "AI Model Status",
+    "modelNotDownloaded": "Not downloaded",
+    "modelDownloaded": "Downloaded ({{size}}MB)",
+    "modelDownloading": "Downloading... {{progress}}%",
+    "downloadNow": "Download now",
+    "deleteModel": "Delete model",
+    "enableDialogTitle": "Enable Speech-to-Text?",
+    "enableDialogMessage": "This feature requires downloading an AI model (~161MB).\n\n• Wi-Fi download recommended\n• Uses 161MB of device storage",
+    "enableDialogConfirm": "Enable",
+    "disableDialogTitle": "Disable Speech-to-Text?",
+    "disableDialogMessage": "Disabling this feature will keep the downloaded AI model.",
+    "disableDialogConfirm": "Disable",
+    "deleteDialogTitle": "Delete AI Model?",
+    "deleteDialogMessage": "Deleting the model will disable Speech-to-Text. You will need to re-download the model (161MB) to use this feature again.",
+    "deleteDialogConfirm": "Delete"
+  },
+  "callHistoryDetailScreen": {
+    "contact": "Destination",
+    "callInfo": "Call information",
+    "date": "Date",
+    "direction": "Direction",
+    "operator": "Operator",
+    "phoneNumber": "Phone number",
+    "talkDuration": "Talk duration",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "unknown": "UNKNOWN",
+    "callRecord": "Call record",
+    "failedToLoadCallRecord": "Failed to load call record",
+    "conversationContent": "Conversation (Operator/Customer)",
+    "transcribing": "Transcribing..."
+  }
+}
